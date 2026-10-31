@@ -17,6 +17,12 @@ Out of scope (per Epic): CSRF, new error pages/handlers, delete confirmation flo
 
 ---
 
+## Decisions
+
+1. **Relaxed Q3 interpretation (approved by human):** up to **10 acceptance criteria per endpoint group** in a single task row.
+
+---
+
 ## A. Summary
 
 ### Stories in this Epic (label: AI-SDLC)
@@ -39,19 +45,19 @@ All stories currently show Jira priority = Medium.
 
 ## B. Task Sequence
 
-> **Open question (Q2):** After splitting FLASKR-4’s implementation into Auth vs Blog tasks to satisfy Q3, there is only one Jira sub-task (**FLASKR-9**) available. Should you create an additional sub-task (or two) so each row maps 1:1?
-
 | Order | Jira key (story) | Sub-task key | Task | Files likely to change | Depends on | Effort | Acceptance criteria covered |
 |---:|---|---|---|---|---|---|---|
 | 1 | FLASKR-3 | FLASKR-6 | Enforce non-dev `SECRET_KEY` when not `debug` and not `testing`; fail fast with clear message; allow missing key in debug/testing | `flaskr/__init__.py` | - | S | FLASKR-3 AC 1,2,3 |
 | 2 | FLASKR-3 | FLASKR-7 | Document production `SECRET_KEY` setup (env var and/or instance config) and ensure README steps result in successful startup | `README.rst` | 1 | S | FLASKR-3 AC 4 |
 | 3 | FLASKR-3 | FLASKR-8 | Add tests verifying: debug/testing allows missing key; non-debug/non-test without key fails; configured key succeeds | `tests/test_factory.py` (and/or new test module), possibly `tests/conftest.py` | 2 | S | FLASKR-3 AC 1,2,3 |
-| 4 | FLASKR-4 | FLASKR-9 | **Auth endpoints**: implement missing-vs-empty validation for `/auth/register` and `/auth/login` | `flaskr/auth.py` | 3 | M | FLASKR-4 AC 1–8 |
-| 5 | FLASKR-4 | **NO SUB-TASK** | **Blog endpoints**: implement missing-vs-empty validation for `/create` and `/<id>/update` + enforce title length ≤ 100; preserve success paths | `flaskr/blog.py` | 4 | M | FLASKR-4 AC 9–18,19 |
-| 6 | FLASKR-4 | FLASKR-10 | Add tests for missing-field=400, empty-field=200 with flashed msg, title length > 100 | `tests/test_auth.py`, `tests/test_blog.py` | 5 | M | FLASKR-4 AC 1–18 (and validate 19 via success-path coverage) |
-| 7 | FLASKR-5 | FLASKR-11 | Implement pagination on `/` using `LIMIT/OFFSET` with page size 10; parse/normalize `page` param (invalid→1) | `flaskr/blog.py` | 6 | M | FLASKR-5 AC 1–4 |
-| 8 | FLASKR-5 | FLASKR-12 | Add pagination controls to blog index template | `flaskr/templates/blog/index.html` | 7 | S | FLASKR-5 AC 5 |
-| 9 | FLASKR-5 | FLASKR-13 | Add tests for default page=1, invalid page→1, page too high→empty list with 200, ordering/no overlap | `tests/test_blog.py`, possibly `tests/data.sql` | 8 | M | FLASKR-5 AC 1–4 |
+| 4 | FLASKR-4 | **FLASKR-9** | **Auth endpoints**: implement missing-vs-empty validation for `/auth/register` and `/auth/login` | `flaskr/auth.py` | 3 | M | FLASKR-4 AC 1–8 |
+| 5 | FLASKR-4 | **FLASKR-14** | **Blog endpoints**: implement missing-vs-empty validation for `/create` and `/<id>/update` + enforce title length ≤ 100 | `flaskr/blog.py` | 4 | M | FLASKR-4 AC 9–18 |
+| 6 | FLASKR-4 | **FLASKR-10** | **Tests (auth validation)**: add tests for missing-field=400 and empty/whitespace-field=200 with flashed msg for register/login | `tests/test_auth.py` | 5 | S | FLASKR-4 AC 1–8 |
+| 7 | FLASKR-4 | **FLASKR-10** | **Tests (blog create validation + success paths)**: add tests for `/create` missing/empty fields + title length > 100, and also validate success-path behavior | `tests/test_blog.py` | 6 | M | FLASKR-4 AC 9–13,19 |
+| 8 | FLASKR-4 | **FLASKR-10** | **Tests (blog update validation)**: add tests for `/<id>/update` missing/empty fields + title length > 100 | `tests/test_blog.py` | 7 | M | FLASKR-4 AC 14–18 |
+| 9 | FLASKR-5 | FLASKR-11 | Implement pagination on `/` using `LIMIT/OFFSET` with page size 10; parse/normalize `page` param (invalid→1) | `flaskr/blog.py` | 8 | M | FLASKR-5 AC 1–4 |
+| 10 | FLASKR-5 | FLASKR-12 | Add pagination controls to blog index template | `flaskr/templates/blog/index.html` | 9 | S | FLASKR-5 AC 5 |
+| 11 | FLASKR-5 | FLASKR-13 | Add tests for default page=1, invalid page→1, page too high→empty list with 200, ordering/no overlap | `tests/test_blog.py`, possibly `tests/data.sql` | 10 | M | FLASKR-5 AC 1–4 |
 
 ---
 
@@ -62,10 +68,10 @@ All stories currently show Jira priority = Medium.
 - FLASKR-4 must land before FLASKR-5 because both change `flaskr/blog.py`.
 
 ### Shared files touched by more than one story + merge order
-- `flaskr/blog.py` shared by **FLASKR-4** (task 5) and **FLASKR-5** (task 7)
-  - Merge order: task 5 → task 7
-- `tests/test_blog.py` shared by **FLASKR-4** (task 6) and **FLASKR-5** (task 9)
-  - Merge order: task 6 → task 9
+- `flaskr/blog.py` shared by **FLASKR-4** (task 5) and **FLASKR-5** (task 9)
+  - Merge order: task 5 → task 9
+- `tests/test_blog.py` shared by **FLASKR-4** (tasks 7–8) and **FLASKR-5** (task 11)
+  - Merge order: task 7 → task 8 → task 11
 
 ### Parallelization guidance
 Work can be parallelized only when it doesn’t touch shared files; however, this plan sequences all tasks to avoid conflicts and to keep endpoint behavior changes easy to review.
@@ -95,8 +101,11 @@ Work can be parallelized only when it doesn’t touch shared files; however, thi
 - [ ] Review: PR references FLASKR-3 and passes tests
 
 ### FLASKR-4
-- [ ] Code: auth + blog validation behavior implemented (AC 1–19)
-- [ ] Tests: cover missing vs empty fields and title length > 100, and preserve success paths
+- [ ] Code: auth + blog validation behavior implemented (AC 1–18)
+- [ ] Tests:
+  - auth validation tests (AC 1–8)
+  - blog create validation tests (AC 9–13) **and** success-path coverage (AC 19)
+  - blog update validation tests (AC 14–18)
 - [ ] Review: PR references FLASKR-4 and passes tests
 
 ### FLASKR-5
@@ -135,7 +144,9 @@ Work can be parallelized only when it doesn’t touch shared files; however, thi
 
 ### Tests to add/update
 - FLASKR-3: startup/secret key behavior tests (likely `tests/test_factory.py`)
-- FLASKR-4: validation tests in `tests/test_auth.py` and `tests/test_blog.py`
+- FLASKR-4:
+  - auth validation tests in `tests/test_auth.py`
+  - blog validation tests in `tests/test_blog.py` (including success-path assertions for AC 19 on the create-focused test row)
 - FLASKR-5: pagination tests in `tests/test_blog.py` (and potentially extend `tests/data.sql` to exceed 10 posts)
 
 ---
@@ -183,8 +194,19 @@ Work can be parallelized only when it doesn’t touch shared files; however, thi
 
 ---
 
-## Quality check (Q8)
+## I. Quality check (Q8)
 
-Quality check: **Q1 PASS, Q2 FAIL, Q3 PASS, Q4 PASS, Q5 PASS, Q6 PASS, Q7 PASS**
+### Q3 row-by-row counts (endpoint group(s) + criteria count)
+1. FLASKR-3 startup config (`create_app` / startup): **3 criteria** (AC 1–3)
+2. FLASKR-3 docs (README): **1 criterion** (AC 4)
+3. FLASKR-3 tests (startup): **3 criteria** (AC 1–3)
+4. FLASKR-4 auth endpoints (`/auth/register`, `/auth/login`): **8 criteria** (AC 1–8)
+5. FLASKR-4 blog endpoints (`/create`, `/<id>/update`): **10 criteria** (AC 9–18)
+6. FLASKR-4 tests (auth validation): **8 criteria** (AC 1–8)
+7. FLASKR-4 tests (blog create + success paths): **6 criteria** (AC 9–13,19)
+8. FLASKR-4 tests (blog update): **5 criteria** (AC 14–18)
+9. FLASKR-5 blog index endpoint (`/` pagination): **4 criteria** (AC 1–4)
+10. FLASKR-5 template (`index.html` pagination controls): **1 criterion** (AC 5)
+11. FLASKR-5 tests (pagination): **4 criteria** (AC 1–4)
 
-- Q2 fails because task row 5 is **NO SUB-TASK** until additional Jira sub-task(s) are created for splitting FLASKR-9.
+Quality check: **Q1 PASS, Q2 PASS, Q3 PASS, Q4 PASS, Q5 PASS, Q6 PASS, Q7 PASS**
