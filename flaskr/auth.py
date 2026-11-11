@@ -9,6 +9,7 @@ from flask import request
 from flask import session
 from flask import url_for
 from werkzeug.security import check_password_hash
+from werkzeug.exceptions import abort
 from werkzeug.security import generate_password_hash
 
 from .db import get_db
@@ -27,6 +28,13 @@ def login_required(view):
         return view(**kwargs)
 
     return wrapped_view
+
+
+def require_fields(*names):
+    """Abort with 400 if any of the named form fields is missing entirely."""
+    for name in names:
+        if name not in request.form:
+            abort(400, f"Missing required field: {name}.")
 
 
 @bp.before_app_request
@@ -51,14 +59,15 @@ def register():
     password for security.
     """
     if request.method == "POST":
+        require_fields("username", "password")
         username = request.form["username"]
         password = request.form["password"]
         db = get_db()
         error = None
 
-        if not username:
+        if not username.strip():
             error = "Username is required."
-        elif not password:
+        elif not password.strip():
             error = "Password is required."
 
         if error is None:
@@ -85,18 +94,25 @@ def register():
 def login():
     """Log in a registered user by adding the user id to the session."""
     if request.method == "POST":
+        require_fields("username", "password")
         username = request.form["username"]
         password = request.form["password"]
         db = get_db()
         error = None
-        user = db.execute(
-            "SELECT * FROM user WHERE username = ?", (username,)
-        ).fetchone()
 
-        if user is None:
-            error = "Incorrect username."
-        elif not check_password_hash(user["password"], password):
-            error = "Incorrect password."
+        if not username.strip():
+            error = "Username is required."
+        elif not password.strip():
+            error = "Password is required."
+        else:
+            user = db.execute(
+                "SELECT * FROM user WHERE username = ?", (username,)
+            ).fetchone()
+
+            if user is None:
+                error = "Incorrect username."
+            elif not check_password_hash(user["password"], password):
+                error = "Incorrect password."
 
         if error is None:
             # store the user id in a new session and return to the index

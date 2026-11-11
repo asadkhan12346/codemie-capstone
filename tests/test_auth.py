@@ -25,7 +25,9 @@ def test_register(client, app):
     ("username", "password", "message"),
     (
         ("", "", b"Username is required."),
+        ("   ", "a", b"Username is required."),
         ("a", "", b"Password is required."),
+        ("a", "   ", b"Password is required."),
         ("test", "test", b"already registered"),
     ),
 )
@@ -33,6 +35,20 @@ def test_register_validate_input(client, username, password, message):
     response = client.post(
         "/auth/register", data={"username": username, "password": password}
     )
+    assert message in response.data
+
+
+@pytest.mark.parametrize("path", ("/auth/register", "/auth/login"))
+@pytest.mark.parametrize(
+    ("data", "message"),
+    (
+        ({"password": "a"}, b"Missing required field: username."),
+        ({"username": "a"}, b"Missing required field: password."),
+    ),
+)
+def test_auth_missing_field_returns_400(client, path, data, message):
+    response = client.post(path, data=data)
+    assert response.status_code == 400
     assert message in response.data
 
 
@@ -54,10 +70,18 @@ def test_login(client, auth):
 
 @pytest.mark.parametrize(
     ("username", "password", "message"),
-    (("a", "test", b"Incorrect username."), ("test", "a", b"Incorrect password.")),
+    (
+        ("a", "test", b"Incorrect username."),
+        ("test", "a", b"Incorrect password."),
+        ("", "test", b"Username is required."),
+        ("   ", "test", b"Username is required."),
+        ("test", "", b"Password is required."),
+        ("test", "   ", b"Password is required."),
+    ),
 )
 def test_login_validate_input(auth, username, password, message):
     response = auth.login(username, password)
+    assert response.status_code == 200
     assert message in response.data
 
 
