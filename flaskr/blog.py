@@ -12,17 +12,40 @@ from .db import get_db
 
 bp = Blueprint("blog", __name__)
 
+PAGE_SIZE = 10
+
 
 @bp.route("/")
 def index():
-    """Show all the posts, most recent first."""
+    """Show one page of posts, most recent first.
+
+    The ``page`` query parameter selects the page; missing, non-integer
+    or less than 1 values fall back to page 1.
+    """
+    try:
+        page = int(request.args.get("page", "1"))
+    except ValueError:
+        page = 1
+
+    if page < 1:
+        page = 1
+
     db = get_db()
+    # Fetch one extra row to know whether a next page exists.
     posts = db.execute(
         "SELECT p.id, title, body, created, author_id, username"
         " FROM post p JOIN user u ON p.author_id = u.id"
-        " ORDER BY created DESC"
+        " ORDER BY created DESC, p.id DESC LIMIT ? OFFSET ?",
+        (PAGE_SIZE + 1, (page - 1) * PAGE_SIZE),
     ).fetchall()
-    return render_template("blog/index.html", posts=posts)
+    has_next = len(posts) > PAGE_SIZE
+    return render_template(
+        "blog/index.html",
+        posts=posts[:PAGE_SIZE],
+        page=page,
+        has_prev=page > 1,
+        has_next=has_next,
+    )
 
 
 def get_post(id, check_author=True):
