@@ -57,17 +57,37 @@ def get_post(id, check_author=True):
     return post
 
 
+def validate_post_form():
+    """Validate the title and body form fields of a post.
+
+    Aborts with 400 if a field is missing entirely.
+
+    :return: ``(title, body, error)`` with surrounding whitespace stripped
+    """
+    for name in ("title", "body"):
+        if name not in request.form:
+            abort(400, f"Missing required field: {name}.")
+
+    title = request.form["title"].strip()
+    body = request.form["body"].strip()
+    error = None
+
+    if not title:
+        error = "Title is required."
+    elif not body:
+        error = "Body is required."
+    elif len(title) > 100:
+        error = "Title must be at most 100 characters."
+
+    return title, body, error
+
+
 @bp.route("/create", methods=("GET", "POST"))
 @login_required
 def create():
     """Create a new post for the current user."""
     if request.method == "POST":
-        title = request.form["title"]
-        body = request.form["body"]
-        error = None
-
-        if not title:
-            error = "Title is required."
+        title, body, error = validate_post_form()
 
         if error is not None:
             flash(error)
@@ -90,12 +110,7 @@ def update(id):
     post = get_post(id)
 
     if request.method == "POST":
-        title = request.form["title"]
-        body = request.form["body"]
-        error = None
-
-        if not title:
-            error = "Title is required."
+        title, body, error = validate_post_form()
 
         if error is not None:
             flash(error)

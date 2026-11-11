@@ -46,7 +46,19 @@ def test_exists_required(client, auth, path):
 def test_create(client, auth, app):
     auth.login()
     assert client.get("/create").status_code == 200
-    client.post("/create", data={"title": "created", "body": ""})
+    response = client.post("/create", data={"title": "created", "body": "created body"})
+    assert response.headers["Location"] == "/"
+
+    with app.app_context():
+        db = get_db()
+        count = db.execute("SELECT COUNT(id) FROM post").fetchone()[0]
+        assert count == 2
+
+
+def test_create_title_at_max_length(client, auth, app):
+    auth.login()
+    response = client.post("/create", data={"title": "a" * 100, "body": "x"})
+    assert response.headers["Location"] == "/"
 
     with app.app_context():
         db = get_db()
@@ -57,19 +69,56 @@ def test_create(client, auth, app):
 def test_update(client, auth, app):
     auth.login()
     assert client.get("/1/update").status_code == 200
-    client.post("/1/update", data={"title": "updated", "body": ""})
+    response = client.post(
+        "/1/update", data={"title": "updated", "body": "updated body"}
+    )
+    assert response.headers["Location"] == "/"
 
     with app.app_context():
         db = get_db()
         post = db.execute("SELECT * FROM post WHERE id = 1").fetchone()
         assert post["title"] == "updated"
+        assert post["body"] == "updated body"
 
 
 @pytest.mark.parametrize("path", ("/create", "/1/update"))
-def test_create_update_validate(client, auth, path):
+@pytest.mark.parametrize(
+    ("data", "message"),
+    (
+        ({"body": "x"}, b"Missing required field: title."),
+        ({"title": "x"}, b"Missing required field: body."),
+    ),
+)
+def test_create_update_missing_field_returns_400(client, auth, path, data, message):
     auth.login()
-    response = client.post(path, data={"title": "", "body": ""})
-    assert b"Title is required." in response.data
+    response = client.post(path, data=data)
+    assert response.status_code == 400
+    assert message in response.data
+
+
+@pytest.mark.parametrize("path", ("/create", "/1/update"))
+@pytest.mark.parametrize(
+    ("title", "body", "message"),
+    (
+        ("", "x", b"Title is required."),
+        ("   ", "x", b"Title is required."),
+        ("", "", b"Title is required."),
+        ("x", "", b"Body is required."),
+        ("x", "   ", b"Body is required."),
+        ("a" * 101, "x", b"Title must be at most 100 characters."),
+    ),
+)
+def test_create_update_validate(client, auth, app, path, title, body, message):
+    auth.login()
+    response = client.post(path, data={"title": title, "body": body})
+    assert response.status_code == 200
+    assert message in response.data
+
+    with app.app_context():
+        db = get_db()
+        assert db.execute("SELECT COUNT(id) FROM post").fetchone()[0] == 1
+        post = db.execute("SELECT * FROM post WHERE id = 1").fetchone()
+        assert post["title"] == "test title"
 
 
 def test_delete(client, auth, app):
